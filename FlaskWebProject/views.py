@@ -67,14 +67,16 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
+            app.logger.info('Invalid login attempt')
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
+        app.logger.info(f'{user.username} logged in successfully')
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('home')
         return redirect(next_page)
     session["state"] = str(uuid.uuid4())
-    auth_url = _build_auth_url(scopes=Config.SCOPE, state=session["state"])
+    auth_url = _build_auth_url(authority=Config.AUTHORITY, scopes=Config.SCOPE, state=session["state"])
     return render_template('login.html', title='Sign In', form=form, auth_url=auth_url)
 
 @app.route(Config.REDIRECT_PATH)  # Its absolute URL must match your app's redirect_uri set in AAD
@@ -86,7 +88,11 @@ def authorized():
     if request.args.get('code'):
         cache = _load_cache()
         # TODO: Acquire a token from a built msal app, along with the appropriate redirect URI
-        result = None
+        code = request.args.get('code')
+        print('authorit', Config.AUTHORITY)
+        client = _build_msal_app(cache, Config.AUTHORITY)
+        result = client.acquire_token_by_authorization_code(code, Config.SCOPE, redirect_uri="https://localhost:5555{}".format(Config.REDIRECT_PATH))
+        #  And replace the error dictionary
         if "error" in result:
             return render_template("auth_error.html", result=result)
         session["user"] = result.get("id_token_claims")
@@ -94,6 +100,7 @@ def authorized():
         # Here, we'll use the admin username for anyone who is authenticated by MS
         user = User.query.filter_by(username="admin").first()
         login_user(user)
+        app.loggger.info(f'{user.username} logged in with oauth2')
         _save_cache(cache)
     return redirect(url_for('home'))
 
@@ -103,7 +110,7 @@ def logout():
     if session.get("user"): # Used MS Login
         # Wipe out user and its token cache from session
         session.clear()
-        # Also logout from your tenant's web session
+        # Also logout from your tenant's web sessionf
         return redirect(
             Config.AUTHORITY + "/oauth2/v2.0/logout" +
             "?post_logout_redirect_uri=" + url_for("login", _external=True))
@@ -111,18 +118,25 @@ def logout():
     return redirect(url_for('login'))
 
 def _load_cache():
-    # TODO: Load the cache from `msal`, if it exists
-    cache = None
+    cache = msal.SerializableTokenCache()
+    if session.get('token_cache'):
+        cache.deserialize(session['token_cache'])
     return cache
 
+
 def _save_cache(cache):
-    # TODO: Save the cache, if it has changed
+    if cache.has_state_changed:
+      session['token_cache'] = cache.serialize()
     pass
 
 def _build_msal_app(cache=None, authority=None):
     # TODO: Return a ConfidentialClientApplication
-    return None
+    client_app = msal.ConfidentialClientApplication(Config.CLIENT_ID, Config.CLIENT_SECRET, authority=authority, token_cache=cache)
+    return client_app
 
 def _build_auth_url(authority=None, scopes=None, state=None):
     # TODO: Return the full Auth Request URL with appropriate Redirect URI
-    return None
+    cache = _load_cache()
+    client_app = _build_msal_app(cache, authority)
+    auth_url = client_app.get_authorization_request_url(scopes, state=state, redirect_uri="https://localhost:5555{}".format(Config.REDIRECT_PATH))
+    return auth_url
