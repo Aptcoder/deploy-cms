@@ -8,13 +8,41 @@
 - *Choose the appropriate solution (VM or App Service) for deploying the app*
 - *Justify your choice*
 
-In terms of cost, Virtual machines tend to be more expensive than app services and given how this is a simple CMS, I do not see a reason to spend so much,hence I will pick a App service deployment in terms of cost.
 
-In terms of scalabilty,the CMS doesn't have a lot of moving parts and by assumption won't be getting a lot of back to back requests hence might not need much compute resources. The VMs can adjusted using a vertical or horizontal scaling while scaling is also offered for app services with a compute resource limit.
+Analysis for costs 
 
-In terms of availability, on a VM, the developer would have to manage the ensure the VMs are up at all time with app running as expected while for an app service deployment this is managed by the service.
+| Vm | App service |
+|-----|----------|
+| The averga Vm costs about $0.5 per hour | The lowest possible plan for an app service is the free plan though limited |
+| Costs for an engineer who would manage the instance, occasionally make upgrades to the underlying infrastructure | Azure manages upgrades along with payment with the service |
+| You pay for the VMs as you go | You make payment for a plan before getting access |
 
-In terms of workflow, deployments on VMs are more laborous compared to an app service deployent where you can use CI offering and deploy from online repositories without having to worry about the internals of the compute service
+
+
+Analysis for scalability 
+
+| Vm | App service |
+|-----|----------|
+|In other to implement load balancing azure load balancer will have to be used |load balancing is a inbuilt feature with azure app service |
+|Vertical scaling would require getting a new instance a redeploying app |Vertical scaling can be done without a need to redeploy
+|
+
+
+Analysis for availability
+
+| Vm | App service |
+|-----|----------|
+| Azure guarantees around 99.9% up time for all VM deployments | Basic plans do not get Uptime guarantees but other apps running on subcription get a 99.5% uptime guarantee |
+| Vms utilize azure traffic manager | App services utilize the traffic manager |
+| An engineer is required to manage the availabilty of infrastructure | Underlying infrastructure is managed by azure |
+
+Analysis for workflow
+
+| Vm | App service |
+|-----|----------|
+|change of development stack is possible since you have access to the underlying os | Deployment stack is configured during the creation of the service |
+|deployments have to be done manually by going into the VM or manually setting up CI | instant deployments using remote repositories and CI |
+
 
 With respect to the analysis done above, I believe the appropriate solution for deploying the app is an App service solution.
 
